@@ -102,6 +102,8 @@ void trap(struct trapframe *tf)
   if (myproc() && myproc()->killed && (tf->cs & 3) == DPL_USER)
     exit();
 
+#if SCHEDULER != FCFS
+
   // Force process to give up CPU on clock tick.
   // If interrupts were on while locks held, would need to check nlock.
   if (myproc() && myproc()->state == RUNNING &&
@@ -111,4 +113,6 @@ void trap(struct trapframe *tf)
   // Check if the process has been killed since we yielded
   if (myproc() && myproc()->killed && (tf->cs & 3) == DPL_USER)
     exit();
+
+#endif
 }

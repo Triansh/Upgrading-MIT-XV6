@@ -1,3 +1,9 @@
+// schedulers
+#define RR    0
+#define FCFS  1
+#define PBS   2
+#define MLFQ  3
+
 // Per-CPU state
 struct cpu {
   uchar apicid;                // Local APIC ID
@@ -50,10 +56,11 @@ struct proc {
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  // new variables for waitx
-  int rtime;                   // total running time of process
-  int ctime;                   // creation time of process
-  int etime;                   // ending time of process
+  // new variables
+  int rtime;                   // total running time of process (waitx)
+  int ctime;                   // creation time of process (waitx)
+  int etime;                   // ending time of process (waitx)
+  int priority                 // priority of process (PBS scheduling)
 };
 
 // Process memory is laid out contiguously, low addresses first:
