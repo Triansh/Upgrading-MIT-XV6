@@ -120,6 +120,9 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+/* ----- new functions and system calls in proc.c -------*/
+void            updateRuntime(void);
+int             waitx(int*,int*);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
