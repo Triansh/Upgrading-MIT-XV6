@@ -95,9 +95,12 @@ found:
   p->ctime = ticks;
   p->etime = 0;
   p->rtime = 0;
+  p->iotime = 0;
+  p->gotCpu = 0;
 
   // setting up default priority
   p->priority = 60;
+  // cprintf("%d alloc\n", p->pid);
 
   release(&ptable.lock);
 
@@ -297,7 +300,11 @@ void updateRuntime()
   {
     if (pr->state == RUNNING)
     {
-      ++(pr->rtime);
+      pr->rtime += 1;
+    }
+    else if (pr->state == SLEEPING)
+    {
+      pr->iotime += 1;
     }
   }
 
@@ -383,7 +390,7 @@ int waitx(int *wtime, int *rtime)
 
         // initializing rtime , wtime
         *rtime = p->rtime;
-        *wtime = p->etime - (*rtime) - p->ctime;
+        *wtime = p->etime - (*rtime) - p->iotime - p->ctime;
 
         release(&ptable.lock);
         return pid;
@@ -422,6 +429,7 @@ void scheduler(void)
   {
     // Enable interrupts on this processor.
     sti();
+    // cprintf("RR\n");
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
@@ -464,15 +472,21 @@ void scheduler(void)
       if (p->state != RUNNABLE)
         continue;
 
-      if (chosen_proc == 0 || chosen_proc->priority > p->priority)
-      {
+      if (chosen_proc == 0)
         chosen_proc = p;
-      }
+      else if (chosen_proc->priority > p->priority)
+        chosen_proc = p;
+      else if (chosen_proc->priority == p->priority && chosen_proc->gotCpu > p->gotCpu)
+        chosen_proc = p;
     }
 
     if (chosen_proc == 0)
+    {
+      release(&ptable.lock);
       continue;
+    }
 
+    ++(chosen_proc->gotCpu);
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
@@ -480,12 +494,32 @@ void scheduler(void)
     switchuvm(chosen_proc);
     chosen_proc->state = RUNNING;
 
+    // cprintf("%s  %d  %d\n", chosen_proc->name, chosen_proc->pid, chosen_proc->gotCpu);
+
     swtch(&(c->scheduler), chosen_proc->context);
     switchkvm();
 
     // Process is done running for now.
     // It should have changed its p->state before coming back.
     c->proc = 0;
+
+    // checking for RR scheduling in PBS
+    int oneCycle = 1;
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->state == RUNNABLE && chosen_proc->priority == p->priority && p->gotCpu == 0)
+      {
+        oneCycle = 0;
+      }
+    }
+
+    for (p = ptable.proc; oneCycle && p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->state == RUNNABLE && chosen_proc->priority == p->priority)
+      {
+        p->gotCpu = 0;
+      }
+    }
 
     release(&ptable.lock);
   }
@@ -514,7 +548,11 @@ void scheduler(void)
     }
 
     if (chosen_proc == 0)
+    {
+      release(&ptable.lock);
       continue;
+    }
+    // cprintf("%d\n", chosen_proc->pid);
 
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
@@ -523,8 +561,12 @@ void scheduler(void)
     switchuvm(chosen_proc);
     chosen_proc->state = RUNNING;
 
+    // cprintf("%s  %d\n", chosen_proc->name, chosen_proc->pid);
+
     swtch(&(c->scheduler), chosen_proc->context);
     switchkvm();
+
+    // cprintf("%d Done!!\n", chosen_proc->pid);
 
     // Process is done running for now.
     // It should have changed its p->state before coming back.
@@ -717,6 +759,9 @@ void procdump(void)
 
 int set_priority(int new_priority, int pid)
 {
+  if (new_priority < 0 || new_priority > 100)
+    return -1;
+
   int old_pr = -1;
 
   acquire(&ptable.lock);
@@ -731,6 +776,16 @@ int set_priority(int new_priority, int pid)
   }
 
   release(&ptable.lock);
+
+  if (new_priority < old_pr)
+  {
+    cprintf("rescheduled\n");
+    yield();
+  }
+  else
+  {
+    cprintf("not\n");
+  }
 
   return old_pr;
 }

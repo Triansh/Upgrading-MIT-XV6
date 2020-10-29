@@ -24,7 +24,7 @@ char* sbrk(int);
 int sleep(int);
 int uptime(void);
 
-/* ----new calls ----*/
+/* ----new system calls ----*/
 int waitx(int *wtime, int*rtime);
 int set_priority(int new_priority, int pid);
 

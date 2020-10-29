@@ -60,7 +60,10 @@ struct proc {
   int rtime;                   // total running time of process (waitx)
   int ctime;                   // creation time of process (waitx)
   int etime;                   // ending time of process (waitx)
-  int priority                 // priority of process (PBS scheduling)
+  int iotime;                  // I/O time of process
+
+  int priority;                // priority of process (PBS scheduling)
+  int gotCpu;                  // the process gained cpu how many times (for PBS RR)
 };
 
 // Process memory is laid out contiguously, low addresses first:

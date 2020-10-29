@@ -71,6 +71,8 @@ QEMU = $(shell if which qemu > /dev/null; \
 	echo "***" 1>&2; exit 1)
 endif
 
+
+
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
@@ -89,6 +91,23 @@ endif
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
+
+# setting scheduler flags
+MACRO_SCHEDULER = -D SCHEDULER=RR
+
+ifeq ($(SCHEDULER), FCFS)
+MACRO_SCHEDULER = -D SCHEDULER=FCFS
+endif
+
+ifeq ($(SCHEDULER), PBS)
+MACRO_SCHEDULER = -D SCHEDULER=PBS
+endif
+
+ifeq ($(SCHEDULER), MLFQ)
+MACRO_SCHEDULER = -D SCHEDULER=MLFQ
+endif
+
+CFLAGS += $(MACRO_SCHEDULER)
 
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
@@ -182,6 +201,8 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_time\
+	_setPriority\
+	_benchmark\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
@@ -218,7 +239,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 2
+CPUS := 1
 endif
 QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
@@ -254,7 +275,8 @@ EXTRA=\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\
-	time.c\
+	time.c setPriority.c\
+	benchmark.c\
 
 dist:
 	rm -rf dist
