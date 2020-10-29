@@ -123,6 +123,7 @@ void            yield(void);
 /* ----- new functions and system calls in proc.c -------*/
 void            updateRuntime(void);
 int             waitx(int*,int*);
+int             set_priority(int,int);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

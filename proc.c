@@ -447,6 +447,49 @@ void scheduler(void)
     release(&ptable.lock);
   }
 
+#elif SCHEDULER == PBS
+
+  for (;;)
+  {
+    // Enable interrupts on this processor.
+    sti();
+
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+
+    struct proc *chosen_proc = 0;
+
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    {
+      if (p->state != RUNNABLE)
+        continue;
+
+      if (chosen_proc == 0 || chosen_proc->priority > p->priority)
+      {
+        chosen_proc = p;
+      }
+    }
+
+    if (chosen_proc == 0)
+      continue;
+
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = chosen_proc;
+    switchuvm(chosen_proc);
+    chosen_proc->state = RUNNING;
+
+    swtch(&(c->scheduler), chosen_proc->context);
+    switchkvm();
+
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+
+    release(&ptable.lock);
+  }
+
 #elif SCHEDULER == FCFS
 
   for (;;)
@@ -668,4 +711,26 @@ void procdump(void)
     }
     cprintf("\n");
   }
+}
+
+// set priority system call
+
+int set_priority(int new_priority, int pid)
+{
+  int old_pr = -1;
+
+  acquire(&ptable.lock);
+
+  for (struct proc *pr = ptable.proc; pr < &ptable.proc[NPROC]; pr++)
+  {
+    if (pr->pid == pid)
+    {
+      old_pr = pr->priority;
+      pr->priority = new_priority;
+    }
+  }
+
+  release(&ptable.lock);
+
+  return old_pr;
 }
