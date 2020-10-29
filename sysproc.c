@@ -105,3 +105,8 @@ int sys_set_priority(void)
   }
   return set_priority(new_priority, pid);
 }
+
+int sys_print_pinfo(void)
+{
+  return print_pinfo();
+}

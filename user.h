@@ -27,6 +27,7 @@ int uptime(void);
 /* ----new system calls ----*/
 int waitx(int *wtime, int*rtime);
 int set_priority(int new_priority, int pid);
+int print_pinfo(void);
 
 
 // ulib.c

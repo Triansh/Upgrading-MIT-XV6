@@ -107,6 +107,7 @@ extern int sys_uptime(void);
 /*--- new calls --- */
 extern int sys_waitx(void);
 extern int sys_set_priority(void);
+extern int sys_print_pinfo(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -134,6 +135,7 @@ static int (*syscalls[])(void) = {
 /*--- new calls --- */
 [SYS_waitx]         sys_waitx,
 [SYS_set_priority]  sys_set_priority,
+[SYS_print_pinfo]   sys_print_pinfo,
 };
 
 void

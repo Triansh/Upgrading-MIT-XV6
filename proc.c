@@ -476,7 +476,7 @@ void scheduler(void)
         chosen_proc = p;
       else if (chosen_proc->priority > p->priority)
         chosen_proc = p;
-      else if (chosen_proc->priority == p->priority && chosen_proc->gotCpu > p->gotCpu)
+      else if (chosen_proc->priority == p->priority && chosen_proc->scheduled > p->scheduled)
         chosen_proc = p;
     }
 
@@ -487,6 +487,7 @@ void scheduler(void)
     }
 
     ++(chosen_proc->gotCpu);
+    ++(chosen_proc->scheduled);
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
@@ -507,7 +508,7 @@ void scheduler(void)
     int oneCycle = 1;
     for (p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     {
-      if (p->state == RUNNABLE && chosen_proc->priority == p->priority && p->gotCpu == 0)
+      if (p->state == RUNNABLE && chosen_proc->priority == p->priority && p->scheduled == 0)
       {
         oneCycle = 0;
       }
@@ -517,7 +518,7 @@ void scheduler(void)
     {
       if (p->state == RUNNABLE && chosen_proc->priority == p->priority)
       {
-        p->gotCpu = 0;
+        p->scheduled = 0;
       }
     }
 
@@ -788,4 +789,34 @@ int set_priority(int new_priority, int pid)
   }
 
   return old_pr;
+}
+
+int print_pinfo(void)
+{
+  cprintf("PID\tPriority\tState\t\tr_time\tw_time\tn_run\tcur_q\tq0\tq1\tq2\tq3\tq4\n");
+
+  acquire(&ptable.lock);
+
+  for (struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+  {
+
+    if (!(p->state == SLEEPING || p->state == RUNNING || p->state == ZOMBIE || p->state == RUNNABLE))
+      continue;
+    cprintf("%d\t%d\t\t", p->pid, p->priority);
+    if (p->state == SLEEPING)
+      cprintf("sleeping");
+    else if (p->state == RUNNING)
+      cprintf("running\t");
+    else if (p->state == ZOMBIE)
+      cprintf("zombie\t");
+    else if (p->state == RUNNABLE)
+      cprintf("runnable");
+    int wtime = ticks - p->ctime - p->rtime - p->iotime;
+    cprintf("\t%d\t%d\t%d\t", p->rtime, wtime, p->gotCpu);
+    // cprintf("%d %d %d %d %d %d");
+    cprintf("\n");
+  }
+
+  release(&ptable.lock);
+  return 0;
 }

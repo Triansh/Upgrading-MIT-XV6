@@ -124,6 +124,7 @@ void            yield(void);
 void            updateRuntime(void);
 int             waitx(int*,int*);
 int             set_priority(int,int);
+int             print_pinfo(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

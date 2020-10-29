@@ -63,7 +63,8 @@ struct proc {
   int iotime;                  // I/O time of process
 
   int priority;                // priority of process (PBS scheduling)
-  int gotCpu;                  // the process gained cpu how many times (for PBS RR)
+  int scheduled;               // (for PBS RR)
+  int gotCpu;                  // the process gained cpu how many times 
 };
 
 // Process memory is laid out contiguously, low addresses first:
