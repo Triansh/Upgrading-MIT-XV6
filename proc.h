@@ -68,6 +68,9 @@ struct proc {
 
   int cur_q;                   // process present in which queue (MLFQ)
   int q_ticks[5];              // number of ticks in each queue
+  int move;                    // movement of process in multiple queues
+  int entry_tick;              // waiting time of one process
+  int p_ticks;                 // total ticks for timers when process is running
 };
 
 // Process memory is laid out contiguously, low addresses first:
