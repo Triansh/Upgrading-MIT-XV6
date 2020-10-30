@@ -13,6 +13,10 @@ struct
   struct proc proc[NPROC];
 } ptable;
 
+struct proc *proc_q[5][NPROC];
+int q_ends[5] = {};
+int q_timers[5] = {1, 2, 4, 8, 16};
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -96,11 +100,11 @@ found:
   p->etime = 0;
   p->rtime = 0;
   p->iotime = 0;
-  p->gotCpu = 0;
 
+  // setting for ps
+  p->gotCpu = 0;
   // setting up default priority
   p->priority = 60;
-  // cprintf("%d alloc\n", p->pid);
 
   release(&ptable.lock);
 
@@ -289,9 +293,8 @@ void exit(void)
   panic("zombie exit");
 }
 
-// This function is used to update rtime in pprocc structure.
+// This function is used to update rtime in proc structure.
 // This is called during interrupts after completion of CPU cycle.
-
 void updateRuntime()
 {
   acquire(&ptable.lock);
@@ -487,7 +490,7 @@ void scheduler(void)
     }
 
     ++(chosen_proc->gotCpu);
-    ++(chosen_proc->scheduled);
+    chosen_proc->scheduled = 1;
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
@@ -818,5 +821,33 @@ int print_pinfo(void)
   }
 
   release(&ptable.lock);
+  return 0;
+}
+
+void push_in_q(struct proc *p, int q_no)
+{
+  proc_q[q_no][q_ends[q_no]] = p;
+  q_ends[q_no]++;
+}
+
+int pop_from_q(struct proc *p, int q_no)
+{
+  int index = -1;
+  for (int i = 0; i < q_ends[q_no]; i++)
+  {
+    if (proc_q[q_no][i]->pid == p->pid)
+    {
+      index = i;
+      break;
+    }
+  }
+  if (index == -1)
+    return -1;
+
+  for (int i = index; i < q_ends[q_no], i++)
+  {
+    proc_q[q_no][i] = proc_q[q_no][i + 1];
+  }
+  q_ends[q_no]--;
   return 0;
 }

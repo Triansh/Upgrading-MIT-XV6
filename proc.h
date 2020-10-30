@@ -65,6 +65,9 @@ struct proc {
   int priority;                // priority of process (PBS scheduling)
   int scheduled;               // (for PBS RR)
   int gotCpu;                  // the process gained cpu how many times 
+
+  int cur_q;                   // process present in which queue (MLFQ)
+  int q_ticks[5];              // number of ticks in each queue
 };
 
 // Process memory is laid out contiguously, low addresses first:
