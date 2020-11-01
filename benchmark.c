@@ -2,8 +2,7 @@
 #include "types.h"
 #include "user.h"
 
-int number_of_processes = 5;
-long long inf = 1e9 / 5;
+int number_of_processes = 14;
 
 int main(int argc, char *argv[])
 {
@@ -16,24 +15,34 @@ int main(int argc, char *argv[])
       printf(1, "Fork failed\n");
       continue;
     }
-    else if (pid == 0)
+    if (pid == 0)
     {
-      for (volatile int k = 0; k < inf; k++)
+      volatile int i;
+      for (volatile int k = 0; k < number_of_processes; k++)
       {
-        ;
+        if (k <= j)
+        {
+          sleep(200); //io time
+        }
+        else
+        {
+          for (i = 0; i < 100000000; i++)
+          {
+            ; //cpu time
+          }
+        }
       }
-      printf(1, "Process:%d %d Finished\n", j, getpid());
+      printf(1, "Process: %d Finished\n", j);
       exit();
     }
-    else
-    {
-      ;
-      set_priority(80 + (j % 3), pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
+    else{
+        ;
+      set_priority(75 + (j%4),pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
     }
   }
-  // for (j = 0; j < number_of_processes+5; j++)
-  // {
-  //   wait();
-  // }
+  for (j = 0; j < number_of_processes + 5; j++)
+  {
+    wait();
+  }
   exit();
 }

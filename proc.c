@@ -475,7 +475,7 @@ void scheduler(void)
       {
         int cur_q = proc_q[i][j]->cur_q;
         p = proc_q[i][j];
-        if (p->wait_ticks > 60 && cur_q != 0)
+        if (p->wait_ticks > 30 && cur_q != 0)
         {
           pop_from_q(p, cur_q);
           push_in_q(p, cur_q - 1);
@@ -972,6 +972,11 @@ void increaseRuntime()
       pr->iotime += 1;
     else if (pr->state == RUNNABLE)
       pr->wait_ticks += 1;
+    
+    if(pr->pid > 3){
+      if(pr->state == RUNNABLE || pr->state == SLEEPING || pr->state == RUNNING)
+        cprintf("%d %d %d\n",ticks, pr->pid, pr->cur_q);
+    }
   }
 
   release(&ptable.lock);
