@@ -15,7 +15,6 @@ struct
 
 struct proc *proc_q[5][NPROC];
 int q_ends[5] = {};
-int q_timers[5] = {1, 2, 4, 8, 16};
 
 static struct proc *initproc;
 
@@ -103,7 +102,7 @@ found:
 
   // setting for ps
   p->gotCpu = 0;
-  p->entry_tick = p->ctime;
+  p->wait_ticks = 0;
   // setting up default priority
   p->priority = 60;
 
@@ -179,6 +178,7 @@ void userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
+  p->wait_ticks  = 0;
 #if SCHEDULER == MLFQ
   push_in_q(p, 0);
 #endif
@@ -251,6 +251,7 @@ int fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->wait_ticks  =  0;
 #if SCHEDULER == MLFQ
   push_in_q(np, 0);
 #endif
@@ -440,7 +441,7 @@ void scheduler(void)
         continue;
 
       ++(p->gotCpu);
-      p->entry_tick = ticks;
+      p->wait_ticks = 0;
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
@@ -464,25 +465,25 @@ void scheduler(void)
   {
     // Enable interrupts on this processor.
     sti();
-    // cprintf("RR\n");
+    // cprintf("MLFQ\n");
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
-
-    struct proc *chosen_proc = 0;
 
     for (int i = 0; i < 5; i++)
       for (int j = 0; j < q_ends[i]; j++)
       {
         int cur_q = proc_q[i][j]->cur_q;
-        struct proc *p = proc_q[i][j];
-        if (ticks - p->entry_tick > 50 && cur_q != 0)
+        p = proc_q[i][j];
+        if (p->wait_ticks > 60 && cur_q != 0)
         {
           pop_from_q(p, cur_q);
           push_in_q(p, cur_q - 1);
+          // cprintf("%d promoted from %d to %d\n", p->pid, cur_q, p->cur_q);
         }
       }
 
+    struct proc *chosen_proc = 0;
     for (int i = 0; i < 5; i++)
     {
       if (q_ends[i] > 0)
@@ -493,14 +494,14 @@ void scheduler(void)
       }
     }
 
-    if (chosen_proc == 0 || chosen_proc != RUNNABLE)
+    if (chosen_proc == 0 || chosen_proc->state != RUNNABLE)
     {
       release(&ptable.lock);
       continue;
     }
 
+    chosen_proc->wait_ticks = 0;
     ++(chosen_proc->gotCpu);
-    chosen_proc->entry_tick = ticks;
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
     // before jumping back to us.
@@ -517,7 +518,7 @@ void scheduler(void)
     // It should have changed its p->state before coming back.
     c->proc = 0;
 
-    if (chosen_proc == 0 || chosen_proc != RUNNABLE)
+    if (chosen_proc == 0 || chosen_proc->state != RUNNABLE)
     {
       release(&ptable.lock);
       continue;
@@ -526,7 +527,12 @@ void scheduler(void)
     if (chosen_proc->move == 1) // should be changed when handling timers
     {
       chosen_proc->move = 0;
+      int cur_q = chosen_proc->cur_q;
       chosen_proc->cur_q += (chosen_proc->cur_q == 4 ? 0 : 1);
+      if(chosen_proc->cur_q != cur_q){
+        // cprintf("%d demoted from %d", chosen_proc->pid, cur_q);
+        // cprintf(" to %d\n", chosen_proc->cur_q);
+      }
     }
     push_in_q(chosen_proc, chosen_proc->cur_q);
 
@@ -564,8 +570,8 @@ void scheduler(void)
       continue;
     }
 
+    chosen_proc->wait_ticks = 0;
     ++(chosen_proc->gotCpu);
-    chosen_proc->entry_tick = ticks;
     chosen_proc->scheduled = 1;
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
@@ -633,8 +639,8 @@ void scheduler(void)
       continue;
     }
     // cprintf("%d\n", chosen_proc->pid);
+    chosen_proc->wait_ticks = 0;
     ++(chosen_proc->gotCpu);
-    chosen_proc->entry_tick = ticks;
 
     // Switch to chosen process.  It is the process's job
     // to release ptable.lock and then reacquire it
@@ -642,8 +648,6 @@ void scheduler(void)
     c->proc = chosen_proc;
     switchuvm(chosen_proc);
     chosen_proc->state = RUNNING;
-
-    chosen_proc->entry_tick = ticks;
 
     // cprintf("%s  %d\n", chosen_proc->name, chosen_proc->pid);
 
@@ -658,8 +662,8 @@ void scheduler(void)
 
     release(&ptable.lock);
   }
-
 #endif
+  // return;
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -769,6 +773,7 @@ wakeup1(void *chan)
     if (p->state == SLEEPING && p->chan == chan)
     {
       p->state = RUNNABLE;
+      p->wait_ticks = 0;
 #if SCHEDULER == MLFQ
       push_in_q(p, 0);
 #endif
@@ -798,10 +803,14 @@ int kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if (p->state == SLEEPING)
+      {
         p->state = RUNNABLE;
+        p->wait_ticks =  0;
+
 #if SCHEDULER == MLFQ
-      push_in_q(p, 0);
+        push_in_q(p, 0);
 #endif
+      }
       release(&ptable.lock);
       return 0;
     }
@@ -871,12 +880,12 @@ int set_priority(int new_priority, int pid)
 
   if (new_priority < old_pr)
   {
-    cprintf("rescheduled\n");
+    // cprintf("rescheduled\n");
     yield();
   }
   else
   {
-    cprintf("not\n");
+    // cprintf("not\n");
   }
 
   return old_pr;
@@ -891,18 +900,21 @@ int print_pinfo(void)
   for (struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++)
   {
 
-    if (!(p->state == SLEEPING || p->state == RUNNING || p->state == ZOMBIE || p->state == RUNNABLE))
+    if (p->state == UNUSED)
       continue;
     cprintf("%d\t%d\t\t", p->pid, p->priority);
     if (p->state == SLEEPING)
-      cprintf("sleeping");
+      cprintf("SLEEPING");
     else if (p->state == RUNNING)
-      cprintf("running\t");
+      cprintf("RUNNING\t");
     else if (p->state == ZOMBIE)
-      cprintf("zombie\t");
+      cprintf("ZOMBIE\t");
     else if (p->state == RUNNABLE)
-      cprintf("runnable");
-    cprintf("\t%d\t%d\t%d\t", p->rtime, ticks - p->entry_tick, p->gotCpu);
+      cprintf("RUNNABLE");
+    else
+      cprintf("EMBRYO\t");
+
+    cprintf("\t%d\t%d\t%d\t", p->rtime, p->wait_ticks, p->gotCpu);
     cprintf("%d", p->cur_q);
     for (int i = 0; i < 5; i++)
       cprintf("\t%d", p->q_ticks[i]);
@@ -915,13 +927,16 @@ int print_pinfo(void)
 
 void push_in_q(struct proc *p, int q_no)
 {
-  p->entry_tick = ticks;
+  for (int i = 0; i < q_ends[q_no]; i++)
+    if (p->pid == proc_q[q_no][i]->pid)
+      return;
+
   p->cur_q = q_no;
   proc_q[q_no][q_ends[q_no]] = p;
   q_ends[q_no]++;
 }
 
-int pop_from_q(struct proc *p, int q_no)
+void pop_from_q(struct proc *p, int q_no)
 {
   int index = -1;
   for (int i = 0; i < q_ends[q_no]; i++)
@@ -933,14 +948,14 @@ int pop_from_q(struct proc *p, int q_no)
     }
   }
   if (index == -1)
-    return -1;
+    return;
 
   for (int i = index; i < q_ends[q_no]; i++)
   {
     proc_q[q_no][i] = proc_q[q_no][i + 1];
   }
   q_ends[q_no]--;
-  return 0;
+  return;
 }
 
 // This function is used to update rtime in proc structure.
@@ -952,13 +967,11 @@ void increaseRuntime()
   for (struct proc *pr = ptable.proc; pr < &(ptable.proc[NPROC]); pr++)
   {
     if (pr->state == RUNNING)
-    {
       pr->rtime += 1;
-    }
     else if (pr->state == SLEEPING)
-    {
       pr->iotime += 1;
-    }
+    else if (pr->state == RUNNABLE)
+      pr->wait_ticks += 1;
   }
 
   release(&ptable.lock);
@@ -976,5 +989,6 @@ void moveProcess(struct proc *p)
 {
   acquire(&ptable.lock);
   p->move = 1;
+  p->p_ticks = 0;
   release(&ptable.lock);
 }

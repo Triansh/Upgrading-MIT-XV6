@@ -51,7 +51,7 @@ void trap(struct trapframe *tf)
     {
       acquire(&tickslock);
       ticks++;
-      updateRuntime();
+      increaseRuntime();
       wakeup(&ticks);
       release(&tickslock);
     }
@@ -109,10 +109,10 @@ void trap(struct trapframe *tf)
   if (myproc() && myproc()->state == RUNNING && tf->trapno == T_IRQ0 + IRQ_TIMER)
   {
     #if SCHEDULER == MLFQ
-      if (myproc()->p_ticks >= q_timers[myproc()->cur_q])
+      if (myproc()->p_ticks >= (1 << myproc()->cur_q))
       {
         moveProcess(myproc());
-        yield()
+        yield();
       } else {
         increaseTicks(myproc());
       }
@@ -120,9 +120,10 @@ void trap(struct trapframe *tf)
     yield();
     #endif
   }
+#endif
+
   // Check if the process has been killed since we yielded
   if (myproc() && myproc()->killed && (tf->cs & 3) == DPL_USER)
     exit();
 
-#endif
 }

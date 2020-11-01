@@ -10,8 +10,6 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
-int q_timers[5];
-
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -126,6 +124,8 @@ void            yield(void);
 void            increaseRuntime(void);
 void            increaseTicks(struct proc *p);
 void            moveProcess(struct proc *p);
+void             pop_from_q(struct proc *p, int q_no);
+void            push_in_q(struct proc *p, int q_no);
 int             waitx(int*,int*);
 int             set_priority(int,int);
 int             print_pinfo(void);
