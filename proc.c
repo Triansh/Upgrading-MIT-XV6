@@ -478,7 +478,7 @@ void scheduler(void)
       {
         int cur_q = proc_q[i][j]->cur_q;
         p = proc_q[i][j];
-        if (p->wait_ticks > 30 && cur_q != 0)
+        if (p->wait_ticks > 70 && cur_q != 0)
         {
           pop_from_q(p, cur_q);
           p->wait_ticks = 0;
@@ -887,10 +887,6 @@ int set_priority(int new_priority, int pid)
   {
     // cprintf("rescheduled\n");
     yield();
-  }
-  else
-  {
-    // cprintf("not\n");
   }
 
   return old_pr;
