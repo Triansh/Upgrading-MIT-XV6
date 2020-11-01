@@ -102,12 +102,15 @@ found:
 
   // setting for ps
   p->gotCpu = 0;
-  p->wait_ticks = 0;
+
+  p->scheduled = 0;
   // setting up default priority
   p->priority = 60;
 
   // setting up for MLFQ
   p->move = 0;
+  p->wait_ticks = 0;
+  p->p_ticks = 0;
 #if SCHEDULER == MLFQ
   p->cur_q = 0;
   for (int i = 0; i < 5; i++)
@@ -178,7 +181,7 @@ void userinit(void)
   acquire(&ptable.lock);
 
   p->state = RUNNABLE;
-  p->wait_ticks  = 0;
+  p->wait_ticks = 0;
 #if SCHEDULER == MLFQ
   push_in_q(p, 0);
 #endif
@@ -251,7 +254,7 @@ int fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
-  np->wait_ticks  =  0;
+  np->wait_ticks = 0;
 #if SCHEDULER == MLFQ
   push_in_q(np, 0);
 #endif
@@ -470,7 +473,7 @@ void scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 
-    for (int i = 0; i < 5; i++)
+    for (int i = 0; i < 5; i++) // aging
       for (int j = 0; j < q_ends[i]; j++)
       {
         int cur_q = proc_q[i][j]->cur_q;
@@ -478,6 +481,7 @@ void scheduler(void)
         if (p->wait_ticks > 30 && cur_q != 0)
         {
           pop_from_q(p, cur_q);
+          p->wait_ticks = 0;
           push_in_q(p, cur_q - 1);
           // cprintf("%d promoted from %d to %d\n", p->pid, cur_q, p->cur_q);
         }
@@ -529,7 +533,8 @@ void scheduler(void)
       chosen_proc->move = 0;
       int cur_q = chosen_proc->cur_q;
       chosen_proc->cur_q += (chosen_proc->cur_q == 4 ? 0 : 1);
-      if(chosen_proc->cur_q != cur_q){
+      if (chosen_proc->cur_q != cur_q)
+      {
         // cprintf("%d demoted from %d", chosen_proc->pid, cur_q);
         // cprintf(" to %d\n", chosen_proc->cur_q);
       }
@@ -775,7 +780,7 @@ wakeup1(void *chan)
       p->state = RUNNABLE;
       p->wait_ticks = 0;
 #if SCHEDULER == MLFQ
-      push_in_q(p, 0);
+      push_in_q(p, p->cur_q);
 #endif
     }
 }
@@ -805,10 +810,10 @@ int kill(int pid)
       if (p->state == SLEEPING)
       {
         p->state = RUNNABLE;
-        p->wait_ticks =  0;
+        p->wait_ticks = 0;
 
 #if SCHEDULER == MLFQ
-        push_in_q(p, 0);
+        push_in_q(p, p->cur_q);
 #endif
       }
       release(&ptable.lock);
@@ -972,11 +977,11 @@ void increaseRuntime()
       pr->iotime += 1;
     else if (pr->state == RUNNABLE)
       pr->wait_ticks += 1;
-    
-    if(pr->pid > 3){
-      if(pr->state == RUNNABLE || pr->state == SLEEPING || pr->state == RUNNING)
-        cprintf("%d %d %d\n",ticks, pr->pid, pr->cur_q);
-    }
+
+    // if(pr->state != UNUSED && pr->pid > 3){
+    //   cprintf("%d %d %d\n", ticks, pr->pid, pr->cur_q );
+    // }
+
   }
 
   release(&ptable.lock);
