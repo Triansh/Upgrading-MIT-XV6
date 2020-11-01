@@ -1,7 +1,7 @@
 #include "types.h"
 #include "user.h"
 
-int number_of_processes = 5;
+int number_of_processes = 14;
 
 int main(int argc, char *argv[])
 {
@@ -20,25 +20,19 @@ int main(int argc, char *argv[])
       volatile int i;
       for (volatile int k = 0; k < number_of_processes; k++)
       {
-        // if (k <= j)
-        // {
-        //   // sleep(20); //io time
-        // }
-        // else
-        // {
-          for (i = 0; i < (int)1e8; i++)
-          {
-            ; //cpu time
-          }
-        // }
+        sleep(50);
+
+        for (i = 0; i < (int)3e7; i++)
+        {
+          ; //cpu time
+        }
       }
-      // printf(1, "Process: %d Finished pid: %d\n", j, getpid());
+      printf(1, "Process: %d Finished pid: %d\n", j, getpid());
       exit();
     }
     else
     {
-      ;
-      // set_priority(80+j%3, pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
+      set_priority(80 + (j % 4), pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
     }
   }
   for (j = 0; j < number_of_processes; j++)
