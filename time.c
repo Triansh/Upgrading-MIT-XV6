@@ -31,7 +31,7 @@ int main(int argc, char *argv[])
     {
         int wtime, rtime;
         waitx(&wtime, &rtime);
-        printf(1, "Time Report:\n");
+        printf(1, "\nTime Report:\n");
         printf(1, "PID: %d\nRuntime: %d\nWait-time: %d\n",  pid, rtime, wtime);
 
     }

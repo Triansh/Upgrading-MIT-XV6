@@ -28,13 +28,15 @@ int main(int argc, char *argv[])
         }
       }
       printf(1, "Process: %d Finished pid: %d\n", j, getpid());
+      print_pinfo();
       exit();
     }
     else
     {
-      set_priority(80 + (j % 4), pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
+      set_priority(75+ (j % 4), pid); // will only matter for PBS, comment it out if not implemented yet (better priorty for more IO intensive jobs)
     }
   }
+
   for (j = 0; j < number_of_processes; j++)
   {
     wait();
